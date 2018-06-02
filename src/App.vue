@@ -5,15 +5,15 @@
         <div id="localFileBut">
           <span>Load local files</span>
         </div>
-        <div id="micSelect">
+        <div id="micSelect" v-show="false">
           <span>Use Mic</span>
         </div>
       </div>
       <div id="presetControls">
         <div>Preset: <select id="presetSelect"></select></div>
-        <div>Cycle: <input type="checkbox" id="presetCycle" checked></input>
-                    <input type="number" id="presetCycleLength"step="1" value="15" min="1"></input></div>
-        <div>Random: <input type="checkbox" id="presetRandom" checked></input></div>
+        <div>Cycle: <input type="checkbox" id="presetCycle" checked="true"/>
+                    <input type="number" id="presetCycleLength" step="1" value="15" min="1" /></div>
+        <div>Random: <input type="checkbox" id="presetRandom" checked="true" /></div>
       </div>
       <canvas id='canvas' width='800' height='600'>
       </canvas>
@@ -22,11 +22,13 @@
 </template>
 
 <script>
+/* global CCapture */
 import HelloWorld from './components/HelloWorld.vue'
 import _ from 'lodash'
 import $ from 'jquery'
 import butterchurn from 'butterchurn'
 import butterchurnPresets from 'butterchurn-presets'
+
 
 export default {
   name: 'app',
@@ -48,6 +50,16 @@ export default {
     var presetCycleLength = 15000;
     var presetRandom = true;
     var canvas = document.getElementById('canvas');
+    var capturer = new CCapture( {
+        format: 'ffmpegserver',
+        framerate: 60,
+        verbose: true,
+        name: "foobar",     // videos will be named foobar-#.mp4, untitled if not set.
+        extension: ".mp4",  // extension for file. default = ".mp4"
+        codec: "mpeg4",     // this is an valid ffmpeg codec "mpeg4", "libx264", "flv1", etc...
+                            // if not set ffmpeg guesses based on extension.
+    });
+    var numFrames = 500
 
     function connectToAudioAnalyzer(sourceNode) {
       if(delayedAudible) {
@@ -63,9 +75,31 @@ export default {
       visualizer.connectAudio(delayedAudible);
     }
 
+    var frameNum = 0
     function startRenderer() {
-      requestAnimationFrame(() => startRenderer());
       visualizer.render();
+      capturer.capture(canvas);
+      frameNum++
+      if (frameNum === numFrames) {
+        capturer.stop()
+        capturer.save(showVideoLink)
+      } else {
+        requestAnimationFrame(() => startRenderer());
+      }
+    }
+
+    function showVideoLink(url, size) {
+      size = size ? (" [size: " + (size / 1024 / 1024).toFixed(1) + "meg]") : " [unknown size]";
+      var a = document.createElement("a");
+      a.href = url;
+      var filename = url;
+      var slashNdx = filename.lastIndexOf("/");
+      if (slashNdx >= 0) {
+        filename = filename.substr(slashNdx + 1);
+      }
+      a.download = filename;
+      a.appendChild(document.createTextNode(url + size));
+      document.body.appendChild(a);
     }
 
     function playBufferSource(buffer) {
@@ -170,7 +204,7 @@ export default {
       }
     });
 
-    $('#presetSelect').change((evt) => {
+    $('#presetSelect').change(() => {
       presetIndexHist.push(presetIndex);
       presetIndex = parseInt($('#presetSelect').val());
       visualizer.loadPreset(presets[presetKeys[presetIndex]], 5.7);
@@ -181,7 +215,7 @@ export default {
       restartCycleInterval();
     });
 
-    $('#presetCycleLength').change((evt) => {
+    $('#presetCycleLength').change(() => {
       presetCycleLength = parseInt($('#presetCycleLength').val() * 1000);
       restartCycleInterval();
     });
@@ -195,7 +229,7 @@ export default {
 
       var fileSelector = $('<input type="file" accept="audio/*" multiple />');
 
-      fileSelector[0].onchange = function(event) {
+      fileSelector[0].onchange = function() {
         loadLocalFiles(fileSelector[0].files);
       }
 
@@ -208,22 +242,32 @@ export default {
       navigator.getUserMedia({ audio: true }, (stream) => {
         var micSourceNode = audioContext.createMediaStreamSource(stream);
         connectMicAudio(micSourceNode, audioContext);
-      }, (err) => {
-        console.log('Error getting audio stream from getUserMedia');
+      }, () => {
+        // console.log('Error getting audio stream from getUserMedia', err);
       });
     });
 
     function initPlayer() {
+
+      capturer.start();
+
+
       audioContext = new AudioContext();
 
+      const URL = 'http://127.0.0.1:8081/11%20Tragic%20Treasure.mp3'
+
+      window.fetch(URL)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer,
+          (buf) => {
+            playBufferSource(buf);
+          })
+        )
+
       presets = {};
-      if (window.butterchurnPresets) {
-        Object.assign(presets, butterchurnPresets.getPresets());
-      }
-      if (window.butterchurnPresetsExtra) {
-        Object.assign(presets, butterchurnPresetsExtra.getPresets());
-      }
-      presets = _(presets).toPairs().sortBy(([k, v]) => k.toLowerCase()).fromPairs().value();
+      Object.assign(presets, butterchurnPresets.getPresets());
+      // Object.assign(presets, butterchurnPresetsExtra.getPresets());
+      presets = _(presets).toPairs().sortBy(([k]) => k.toLowerCase()).fromPairs().value();
       presetKeys = _.keys(presets);
       presetIndex = Math.floor(Math.random() * presetKeys.length);
 
