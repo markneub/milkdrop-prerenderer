@@ -1,6 +1,7 @@
 <template>
   <div id="app">
     <div id="mainWrapper">
+      <button id="start">start</button><button id="stop">stop</button>
       <div id="audioSelectWrapper">
         <div id="localFileBut">
           <span>Load local files</span>
@@ -11,11 +12,11 @@
       </div>
       <div id="presetControls">
         <div>Preset: <select id="presetSelect"></select></div>
-        <div>Cycle: <input type="checkbox" id="presetCycle" checked="true"/>
+        <div>Cycle: <input type="checkbox" id="presetCycle" />
                     <input type="number" id="presetCycleLength" step="1" value="15" min="1" /></div>
-        <div>Random: <input type="checkbox" id="presetRandom" checked="true" /></div>
+        <div>Random: <input type="checkbox" id="presetRandom" /></div>
       </div>
-      <canvas id='canvas' width='800' height='600'>
+      <canvas id='canvas' :width='canvasWidth' :height='canvasHeight'>
       </canvas>
     </div>
   </div>
@@ -29,11 +30,16 @@ import $ from 'jquery'
 import butterchurn from 'butterchurn'
 import butterchurnPresets from 'butterchurn-presets'
 
-
 export default {
   name: 'app',
   components: {
     HelloWorld
+  },
+  data () {
+    return {
+      canvasWidth: 800,
+      canvasHeight: 600
+    }
   },
   mounted () {
     var visualizer = null;
@@ -46,20 +52,25 @@ export default {
     var presetKeys = [];
     var presetIndexHist = [];
     var presetIndex = 0;
-    var presetCycle = true;
+    var presetCycle = false;
     var presetCycleLength = 15000;
-    var presetRandom = true;
+    var presetRandom = false;
     var canvas = document.getElementById('canvas');
-    var capturer = new CCapture( {
-        format: 'ffmpegserver',
-        framerate: 60,
-        verbose: true,
-        name: "foobar",     // videos will be named foobar-#.mp4, untitled if not set.
-        extension: ".mp4",  // extension for file. default = ".mp4"
-        codec: "mpeg4",     // this is an valid ffmpeg codec "mpeg4", "libx264", "flv1", etc...
-                            // if not set ffmpeg guesses based on extension.
+    var capturer = new CCapture({
+      onProgress: progressFunc,
+      name: 'tragic-treasure',
+      format: 'ffmpegserver',
+      framerate: 60,
+      verbose: true,
+      extension: ".mp4",  // extension for file. default = ".mp4"
+      codec: "mpeg4"      // this is an valid ffmpeg codec "mpeg4", "libx264", "flv1", etc...
     });
-    var numFrames = 500
+    var numFrames = 1160
+    var buffy = null
+
+    function progressFunc(progress) {
+      console.log(progress);  // 0.0 to 1.0
+    }
 
     function connectToAudioAnalyzer(sourceNode) {
       if(delayedAudible) {
@@ -67,7 +78,8 @@ export default {
       }
 
       delayedAudible = audioContext.createDelay();
-      delayedAudible.delayTime.value = 0.26;
+      delayedAudible.delayTime.value = 0;
+      // delayedAudible.delayTime.value = 0.26;
 
       sourceNode.connect(delayedAudible)
       delayedAudible.connect(audioContext.destination);
@@ -77,15 +89,41 @@ export default {
 
     var frameNum = 0
     function startRenderer() {
-      visualizer.render();
-      capturer.capture(canvas);
+      // console.log(buffy)
+      // console.log(audioContext)
+
+      // playCurrentChunk();
+
+      visualizer.listen();
+
       frameNum++
       if (frameNum === numFrames) {
-        capturer.stop()
-        capturer.save(showVideoLink)
+        audioContext.suspend()
+        capturer.start();
+        doRenderCapture()
       } else {
-        requestAnimationFrame(() => startRenderer());
+        requestAnimationFrame(startRenderer)
       }
+    }
+
+    window.currRenderFrame = 0
+    function doRenderCapture() {
+      visualizer.render(window.FFTsamples[window.currRenderFrame])
+      capturer.capture(canvas);
+      if (window.currRenderFrame < window.FFTsamples.length - 1) {
+        window.currRenderFrame++;
+        requestAnimationFrame(doRenderCapture)
+      } else {
+        capturer.stop()
+        capturer.save()
+      }
+    }
+
+    function playCurrentChunk() {
+      sourceNode = audioContext.createBufferSource();
+      sourceNode.buffer = buffy;
+      connectToAudioAnalyzer(sourceNode);
+      sourceNode.start(0, Math.max(0, frameNum / 60 - 0.26))
     }
 
     function showVideoLink(url, size) {
@@ -114,6 +152,7 @@ export default {
 
       sourceNode = audioContext.createBufferSource();
       sourceNode.buffer = buffer;
+
       connectToAudioAnalyzer(sourceNode);
 
       sourceNode.start(0);
@@ -127,6 +166,7 @@ export default {
         audioContext.decodeAudioData(
           event.target.result,
           (buf) => {
+            buffy = buf
             playBufferSource(buf);
 
             setTimeout(() => {
@@ -249,9 +289,7 @@ export default {
 
     function initPlayer() {
 
-      capturer.start();
-
-
+      window.LISTENPASS = true
       audioContext = new AudioContext();
 
       const URL = 'http://127.0.0.1:8081/11%20Tragic%20Treasure.mp3'
@@ -260,6 +298,7 @@ export default {
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer,
           (buf) => {
+            buffy = buf
             playBufferSource(buf);
           })
         )
@@ -280,16 +319,23 @@ export default {
       }
 
       visualizer = butterchurn.createVisualizer(audioContext, canvas , {
-        width: 800,
-        height: 600,
+        width: this.canvasWidth,
+        height: this.canvasHeight,
         pixelRatio: window.devicePixelRatio || 1,
         textureRatio: 1,
       });
-      nextPreset(0);
-      cycleInterval = setInterval(() => nextPreset(2.7), presetCycleLength);
+
+      visualizer.loadPreset(presets['Martin - charisma'], 0.0); // 2nd argument is the number of seconds to blend presets
+
+      // nextPreset(0);
+      // cycleInterval = setInterval(() => nextPreset(2.7), presetCycleLength);
     }
 
-    initPlayer();
+    $('#start').on('click', initPlayer)
+    $('#stop').on('click', () => {
+      window.HALT = true
+      audioContext.suspend()
+    })
   }
 }
 </script>
