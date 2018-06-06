@@ -16,7 +16,7 @@
                     <input type="number" id="presetCycleLength" step="1" value="15" min="1" /></div>
         <div>Random: <input type="checkbox" id="presetRandom" /></div>
       </div>
-      <canvas id='canvas' :width='canvasWidth' :height='canvasHeight'>
+      <canvas id='canvas' width="1440" height="900">
       </canvas>
     </div>
   </div>
@@ -37,8 +37,8 @@ export default {
   },
   data () {
     return {
-      canvasWidth: 800,
-      canvasHeight: 600
+      canvasWidth: 1440,
+      canvasHeight: 900
     }
   },
   mounted () {
@@ -65,8 +65,7 @@ export default {
       extension: ".mp4",  // extension for file. default = ".mp4"
       codec: "mpeg4"      // this is an valid ffmpeg codec "mpeg4", "libx264", "flv1", etc...
     });
-    var numFrames = 1160
-    var buffy = null
+    var numFrames = 11
 
     function progressFunc(progress) {
       console.log(progress);  // 0.0 to 1.0
@@ -113,31 +112,13 @@ export default {
       if (window.currRenderFrame < window.FFTsamples.length - 1) {
         window.currRenderFrame++;
         requestAnimationFrame(doRenderCapture)
+        if (window.currRenderFrame % 600 === 0) {
+          nextPreset()
+        }
       } else {
         capturer.stop()
         capturer.save()
       }
-    }
-
-    function playCurrentChunk() {
-      sourceNode = audioContext.createBufferSource();
-      sourceNode.buffer = buffy;
-      connectToAudioAnalyzer(sourceNode);
-      sourceNode.start(0, Math.max(0, frameNum / 60 - 0.26))
-    }
-
-    function showVideoLink(url, size) {
-      size = size ? (" [size: " + (size / 1024 / 1024).toFixed(1) + "meg]") : " [unknown size]";
-      var a = document.createElement("a");
-      a.href = url;
-      var filename = url;
-      var slashNdx = filename.lastIndexOf("/");
-      if (slashNdx >= 0) {
-        filename = filename.substr(slashNdx + 1);
-      }
-      a.download = filename;
-      a.appendChild(document.createTextNode(url + size));
-      document.body.appendChild(a);
     }
 
     function playBufferSource(buffer) {
@@ -166,7 +147,6 @@ export default {
         audioContext.decodeAudioData(
           event.target.result,
           (buf) => {
-            buffy = buf
             playBufferSource(buf);
 
             setTimeout(() => {
@@ -288,8 +268,6 @@ export default {
     });
 
     function initPlayer() {
-
-      window.LISTENPASS = true
       audioContext = new AudioContext();
 
       const URL = 'http://127.0.0.1:8081/11%20Tragic%20Treasure.mp3'
@@ -298,7 +276,6 @@ export default {
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer,
           (buf) => {
-            buffy = buf
             playBufferSource(buf);
           })
         )
@@ -325,9 +302,9 @@ export default {
         textureRatio: 1,
       });
 
-      visualizer.loadPreset(presets['Martin - charisma'], 0.0); // 2nd argument is the number of seconds to blend presets
+      // visualizer.loadPreset(presets['Martin - charisma'], 0.0); // 2nd argument is the number of seconds to blend presets
 
-      // nextPreset(0);
+      nextPreset(0);
       // cycleInterval = setInterval(() => nextPreset(2.7), presetCycleLength);
     }
 
