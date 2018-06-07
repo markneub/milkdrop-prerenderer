@@ -42,6 +42,12 @@ export default {
     }
   },
   mounted () {
+    var currPresetIndex = 0
+    var presetOrder = [
+      62, // martin - charisma
+      32, // Flex - infused with the spiral
+    ]
+    var useSpecifiedPresetOrder = true
     var that = this
     var visualizer = null;
     var rendering = false;
@@ -115,7 +121,7 @@ export default {
       if (window.currRenderFrame < window.FFTsamples.length - 1) {
         window.currRenderFrame++;
         requestAnimationFrame(doRenderCapture)
-        if (window.currRenderFrame % 430 === 0) {
+        if (window.currRenderFrame === 430) {
           //   0 - 430  ring
           // 430 - 730  blend
           // 730 - 1160 sparkles
@@ -188,10 +194,15 @@ export default {
       presetIndexHist.push(presetIndex);
 
       var numPresets = presetKeys.length;
-      if (presetRandom) {
-        presetIndex = Math.floor(Math.random() * presetKeys.length);
+      if (useSpecifiedPresetOrder) {
+        presetIndex = presetOrder[currPresetIndex]
+        currPresetIndex++
       } else {
-        presetIndex = (presetIndex + 1) % numPresets;
+        if (presetRandom) {
+          presetIndex = Math.floor(Math.random() * presetKeys.length);
+        } else {
+          presetIndex = (presetIndex + 1) % numPresets;
+        }
       }
 
       visualizer.loadPreset(presets[presetKeys[presetIndex]], blendTime);
