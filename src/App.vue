@@ -120,7 +120,7 @@ export default {
       capturer.capture(canvas);
       if (window.currRenderFrame < window.FFTsamples.length - 1) {
         window.currRenderFrame++;
-        requestAnimationFrame(doRenderCapture)
+        setTimeout(doRenderCapture, 0)
         if (window.currRenderFrame === 430) {
           //   0 - 430  ring
           // 430 - 730  blend
