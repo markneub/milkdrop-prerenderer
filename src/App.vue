@@ -16,7 +16,7 @@
                     <input type="number" id="presetCycleLength" step="1" value="15" min="1" /></div>
         <div>Random: <input type="checkbox" id="presetRandom" /></div>
       </div>
-      <canvas id='canvas' width="1440" height="900">
+      <canvas id='canvas' :width="canvasWidth" :height="canvasHeight">
       </canvas>
     </div>
   </div>
@@ -37,11 +37,12 @@ export default {
   },
   data () {
     return {
-      canvasWidth: 1440,
-      canvasHeight: 900
+      canvasWidth: 400,
+      canvasHeight: 300
     }
   },
   mounted () {
+    var that = this
     var visualizer = null;
     var rendering = false;
     var audioContext = null;
@@ -65,7 +66,7 @@ export default {
       extension: ".mp4",  // extension for file. default = ".mp4"
       codec: "mpeg4"      // this is an valid ffmpeg codec "mpeg4", "libx264", "flv1", etc...
     });
-    var numFrames = 11
+    var numFrames = 1160
 
     function progressFunc(progress) {
       console.log(progress);  // 0.0 to 1.0
@@ -97,7 +98,9 @@ export default {
 
       frameNum++
       if (frameNum === numFrames) {
+        console.log("Done listening, started rendering")
         audioContext.suspend()
+        visualizer.setRendererSize(that.canvasWidth, that.canvasHeight)
         capturer.start();
         doRenderCapture()
       } else {
@@ -112,8 +115,11 @@ export default {
       if (window.currRenderFrame < window.FFTsamples.length - 1) {
         window.currRenderFrame++;
         requestAnimationFrame(doRenderCapture)
-        if (window.currRenderFrame % 600 === 0) {
-          nextPreset()
+        if (window.currRenderFrame % 430 === 0) {
+          //   0 - 430  ring
+          // 430 - 730  blend
+          // 730 - 1160 sparkles
+          nextPreset(5)
         }
       } else {
         capturer.stop()
@@ -124,6 +130,7 @@ export default {
     function playBufferSource(buffer) {
       if (!rendering) {
         rendering = true;
+        console.log('Started listening')
         startRenderer();
       }
 
@@ -177,7 +184,7 @@ export default {
       startRenderer();
     }
 
-    function nextPreset(blendTime = 5.7) {
+    function nextPreset(blendTime = 2) {
       presetIndexHist.push(presetIndex);
 
       var numPresets = presetKeys.length;
