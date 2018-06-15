@@ -37,15 +37,23 @@ export default {
   },
   data () {
     return {
-      canvasWidth: 400,
-      canvasHeight: 300
+      canvasWidth: 2560,
+      canvasHeight: 1440
     }
   },
   mounted () {
     var currPresetIndex = 0
     var presetOrder = [
-      62, // martin - charisma
-      32, // Flex - infused with the spiral
+      149, // Martin - charisma = sparkle star zoom
+      80, // Flexi - infused with the spiral
+      41, // cope - the drain to heaven
+      150, // martin - cherry brain wall mod
+      58, // flexi + amandio c - organic12-3d-2.milk = ghostly 3d shape flyby
+      128, // Goody - The Wild Vort
+      161, // martin - frosty caves 2
+      147, // martin - castle in the air
+      81, // Flexi - flexi - infused with the spiral (jelly 4.x cn)
+      106, // Geiss + Flexi + Martin - disconnected - disconnected = ghost ring
     ]
     var useSpecifiedPresetOrder = true
     var that = this
@@ -72,7 +80,7 @@ export default {
       extension: ".mp4",  // extension for file. default = ".mp4"
       codec: "mpeg4"      // this is an valid ffmpeg codec "mpeg4", "libx264", "flv1", etc...
     });
-    var numFrames = 1160
+    var numFrames = 11600
 
     function progressFunc(progress) {
       console.log(progress);  // 0.0 to 1.0
@@ -121,11 +129,11 @@ export default {
       if (window.currRenderFrame < window.FFTsamples.length - 1) {
         window.currRenderFrame++;
         setTimeout(doRenderCapture, 0)
-        if (window.currRenderFrame === 430) {
-          //   0 - 430  ring
-          // 430 - 730  blend
-          // 730 - 1160 sparkles
-          nextPreset(5)
+
+        // when we are 16 seconds in, start blend, until 24 seconds
+        // at 36, start next blend, etc
+        if ((window.currRenderFrame + 240) % 1200 === 0) {
+          nextPreset(8)
         }
       } else {
         capturer.stop()
@@ -300,7 +308,7 @@ export default {
 
       presets = {};
       Object.assign(presets, butterchurnPresets.getPresets());
-      // Object.assign(presets, butterchurnPresetsExtra.getPresets());
+      Object.assign(presets, butterchurnPresetsExtra.getPresets());
       presets = _(presets).toPairs().sortBy(([k]) => k.toLowerCase()).fromPairs().value();
       presetKeys = _.keys(presets);
       presetIndex = Math.floor(Math.random() * presetKeys.length);
